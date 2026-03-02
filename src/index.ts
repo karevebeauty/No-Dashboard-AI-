@@ -10,6 +10,7 @@ import { RedisClient } from './services/redis-client';
 import { Database } from './services/database';
 import { HealthCheckService } from './services/health-check';
 import { NotificationService } from './services/notification-service';
+import { PersonalAssistantService } from './services/personal-assistant-service';
 import { errorHandler } from './utils/error-handler';
 
 class SMSAgentServer {
@@ -19,14 +20,16 @@ class SMSAgentServer {
   private database: Database;
   private healthCheckService: HealthCheckService;
   private notificationService: NotificationService;
+  private personalAssistant: PersonalAssistantService;
 
   constructor() {
     this.app = express();
     this.redisClient = new RedisClient(config.redis);
     this.database = new Database(config.database);
-    this.messageRouter = new MessageRouter();
+    this.messageRouter = new MessageRouter(this.redisClient);
     this.healthCheckService = new HealthCheckService();
     this.notificationService = new NotificationService();
+    this.personalAssistant = new PersonalAssistantService(this.messageRouter);
   }
 
   private setupMiddleware(): void {
@@ -155,6 +158,10 @@ class SMSAgentServer {
         logger.info('Notification Service started');
       }
 
+      // Start Personal Assistant Service (cron jobs for briefings/reminders)
+      await this.personalAssistant.initialize();
+      logger.info('Personal Assistant Service started');
+
       logger.info('All services initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize services', { error });
@@ -179,6 +186,8 @@ class SMSAgentServer {
         this.healthCheckService.stop();
         logger.info('Health Check Service stopped');
       }
+
+      // Personal assistant cron jobs will stop with the process
 
       // Close connections
       if (this.redisClient) {

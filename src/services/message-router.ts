@@ -5,7 +5,10 @@ import { logger } from '../utils/logger';
 import { AuthService } from './auth-service';
 import { RateLimiter } from './rate-limiter';
 import { ConversationManager } from './conversation-manager';
-import { ClaudeService } from './claude-service';
+import { ClaudeService } from './claude-service-enhanced';
+import { ActionConfirmationService } from './action-confirmation-service';
+import { OnboardingService } from './onboarding-service';
+import { RedisClient } from './redis-client';
 import { ResponseFormatter } from '../utils/response-formatter';
 import { CostTracker } from './cost-tracker';
 import {
@@ -23,10 +26,12 @@ export class MessageRouter {
   private rateLimiter: RateLimiter;
   private conversationManager: ConversationManager;
   private claudeService: ClaudeService;
+  private actionConfirmationService: ActionConfirmationService;
+  private onboardingService: OnboardingService;
   private responseFormatter: ResponseFormatter;
   private costTracker: CostTracker;
 
-  constructor() {
+  constructor(redisClient: RedisClient) {
     this.twilioClient = twilio(
       config.twilio.accountSid,
       config.twilio.authToken
@@ -34,7 +39,9 @@ export class MessageRouter {
     this.authService = new AuthService();
     this.rateLimiter = new RateLimiter();
     this.conversationManager = new ConversationManager();
-    this.claudeService = new ClaudeService();
+    this.actionConfirmationService = new ActionConfirmationService(redisClient);
+    this.claudeService = new ClaudeService(this.actionConfirmationService);
+    this.onboardingService = new OnboardingService();
     this.responseFormatter = new ResponseFormatter();
     this.costTracker = new CostTracker();
   }
@@ -156,6 +163,21 @@ export class MessageRouter {
     const { from, body } = message;
 
     try {
+      // Check if user is new or in onboarding
+      if (this.onboardingService.isNewUser(from)) {
+        const onboardingResponse = await this.onboardingService.processOnboardingMessage(from, body);
+        await this.sendSMS(from, onboardingResponse);
+
+        // If onboarding just completed, send the completion message
+        const profile = this.onboardingService.getUserProfile(from);
+        if (profile && profile.onboarding.status === 'completed') {
+          const completionMsg = this.onboardingService.getCompletionMessage(from);
+          await this.delay(1000);
+          await this.sendSMS(from, completionMsg);
+        }
+        return;
+      }
+
       // Get or create conversation context
       const context = await this.conversationManager.getContext(from);
 

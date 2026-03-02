@@ -592,27 +592,148 @@ ${message}
 Respond in a way that's personalized to this specific user, referencing relevant context when appropriate.`;
   }
 
-  // Database operations (simplified - would use actual SQL)
-  
+  // Database operations
+
   private async saveMemoryToDB(memory: MemoryEntry): Promise<void> {
-    // TODO: Implement actual database save
-    logger.debug('Saving memory to database', { memoryId: memory.id });
+    try {
+      await this.db.query(
+        `INSERT INTO memories (id, phone_number, type, content, embedding, tags, importance, metadata, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (id) DO UPDATE SET
+           content = EXCLUDED.content,
+           tags = EXCLUDED.tags,
+           importance = EXCLUDED.importance,
+           metadata = EXCLUDED.metadata,
+           updated_at = NOW()`,
+        [
+          memory.id,
+          memory.userId, // phone_number maps to userId in this service
+          memory.type,
+          memory.content,
+          memory.embedding || [],
+          memory.metadata.tags || [],
+          memory.metadata.importance || 5,
+          JSON.stringify({
+            source: memory.metadata.source,
+            category: memory.metadata.category,
+            sentiment: memory.metadata.sentiment,
+            relatedMemories: memory.relatedMemories,
+          }),
+          memory.metadata.timestamp,
+        ]
+      );
+      logger.debug('Memory saved to database', { memoryId: memory.id });
+    } catch (error) {
+      logger.error('Failed to save memory to database', { memoryId: memory.id, error });
+    }
   }
 
   private async loadMemoriesFromDB(userId: string): Promise<MemoryEntry[]> {
-    // TODO: Implement actual database load
-    return [];
+    try {
+      const result = await this.db.query(
+        `SELECT id, phone_number, type, content, embedding, tags, importance, metadata, created_at
+         FROM memories WHERE phone_number = $1
+         ORDER BY created_at DESC LIMIT 200`,
+        [userId]
+      );
+
+      return result.rows.map((row: any) => ({
+        id: row.id,
+        userId: row.phone_number,
+        type: row.type,
+        content: row.content,
+        embedding: row.embedding || [],
+        metadata: {
+          timestamp: new Date(row.created_at),
+          source: row.metadata?.source || 'sms',
+          category: row.metadata?.category,
+          tags: row.tags || [],
+          importance: parseFloat(row.importance) || 5,
+          sentiment: row.metadata?.sentiment || 'neutral',
+        },
+        relatedMemories: row.metadata?.relatedMemories || [],
+      }));
+    } catch (error) {
+      logger.error('Failed to load memories from database', { userId, error });
+      return [];
+    }
   }
 
   private async loadProfileFromDB(
     userId: string
   ): Promise<PersonalizationProfile | null> {
-    // TODO: Implement actual database load
-    return null;
+    try {
+      const result = await this.db.query(
+        `SELECT preferences, patterns, relationships, goals, learnings
+         FROM personalization_profiles WHERE phone_number = $1`,
+        [userId]
+      );
+
+      if (result.rows.length === 0) return null;
+
+      const row = result.rows[0];
+      return {
+        userId,
+        preferences: row.preferences || {
+          communicationStyle: 'balanced',
+          preferredTopics: [],
+          avoidedTopics: [],
+          responseLength: 'medium',
+          formalityLevel: 5,
+          humorLevel: 3,
+        },
+        patterns: row.patterns || {
+          activeHours: [],
+          commonTasks: [],
+          frequentQuestions: [],
+          workingStyle: 'unknown',
+        },
+        relationships: row.relationships || {
+          keyContacts: [],
+          companies: [],
+          projects: [],
+        },
+        goals: row.goals || {
+          shortTerm: [],
+          longTerm: [],
+          achievements: [],
+        },
+        learnings: row.learnings || {
+          whatWorksWell: [],
+          whatToAvoid: [],
+          specialRequests: [],
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to load profile from database', { userId, error });
+      return null;
+    }
   }
 
   private async saveProfileToDB(profile: PersonalizationProfile): Promise<void> {
-    // TODO: Implement actual database save
-    logger.debug('Saving profile to database', { userId: profile.userId });
+    try {
+      await this.db.query(
+        `INSERT INTO personalization_profiles (phone_number, preferences, patterns, relationships, goals, learnings, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         ON CONFLICT (phone_number) DO UPDATE SET
+           preferences = EXCLUDED.preferences,
+           patterns = EXCLUDED.patterns,
+           relationships = EXCLUDED.relationships,
+           goals = EXCLUDED.goals,
+           learnings = EXCLUDED.learnings,
+           updated_at = NOW()`,
+        [
+          profile.userId,
+          JSON.stringify(profile.preferences),
+          JSON.stringify(profile.patterns),
+          JSON.stringify(profile.relationships),
+          JSON.stringify(profile.goals),
+          JSON.stringify(profile.learnings),
+        ]
+      );
+      logger.debug('Profile saved to database', { userId: profile.userId });
+    } catch (error) {
+      logger.error('Failed to save profile to database', { userId: profile.userId, error });
+    }
   }
 }
