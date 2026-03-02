@@ -101,6 +101,24 @@ export const config: SystemConfig = {
     metricsPort: getEnvNumber('METRICS_PORT', 9090),
     healthCheckInterval: getEnvNumber('HEALTH_CHECK_INTERVAL', 60000),
   },
+
+  integrations: {
+    google: process.env.GOOGLE_CLIENT_ID ? {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      refreshToken: process.env.GOOGLE_REFRESH_TOKEN || '',
+    } : undefined,
+    notion: process.env.NOTION_API_KEY ? {
+      apiKey: process.env.NOTION_API_KEY,
+    } : undefined,
+    slack: process.env.SLACK_BOT_TOKEN ? {
+      botToken: process.env.SLACK_BOT_TOKEN,
+    } : undefined,
+    erp: process.env.ERP_API_URL ? {
+      apiUrl: process.env.ERP_API_URL,
+      apiKey: process.env.ERP_API_KEY || '',
+    } : undefined,
+  },
 };
 
 // Validate critical configuration
@@ -122,6 +140,12 @@ console.log('Configuration loaded:', {
   twilioConfigured: !!config.twilio.accountSid,
   claudeConfigured: !!config.claude.apiKey,
   notificationsEnabled: config.notifications.enabled,
+  integrations: {
+    google: !!config.integrations.google,
+    notion: !!config.integrations.notion,
+    slack: !!config.integrations.slack,
+    erp: !!config.integrations.erp,
+  },
 });
 
 export default config;

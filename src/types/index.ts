@@ -248,6 +248,25 @@ export interface SystemConfig {
     metricsPort: number;
     healthCheckInterval: number;
   };
+  integrations: IntegrationConfig;
+}
+
+export interface IntegrationConfig {
+  google?: {
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+  };
+  notion?: {
+    apiKey: string;
+  };
+  slack?: {
+    botToken: string;
+  };
+  erp?: {
+    apiUrl: string;
+    apiKey: string;
+  };
 }
 
 // MCP-specific types for system integrations

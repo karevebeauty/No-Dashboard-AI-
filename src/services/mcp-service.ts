@@ -1,5 +1,10 @@
+import { config } from '../config';
 import { logger } from '../utils/logger';
 import { MCPTool, MCPToolResult, MCPError } from '../types';
+import { GoogleWorkspaceClient } from '../integrations/google-workspace';
+import { NotionClient } from '../integrations/notion-client';
+import { SlackClient } from '../integrations/slack-client';
+import { ErpClient } from '../integrations/erp-client';
 
 /**
  * MCP Service manages all integrations with external systems
@@ -8,11 +13,71 @@ import { MCPTool, MCPToolResult, MCPError } from '../types';
 export class MCPService {
   private tools: Map<string, MCPTool>;
   private toolHandlers: Map<string, (params: any) => Promise<any>>;
+  private googleClient: GoogleWorkspaceClient | null = null;
+  private notionClient: NotionClient | null = null;
+  private slackClient: SlackClient | null = null;
+  private erpClient: ErpClient | null = null;
 
   constructor() {
     this.tools = new Map();
     this.toolHandlers = new Map();
+    this.initializeIntegrations();
     this.registerTools();
+  }
+
+  /**
+   * Initialize integration clients based on available config
+   */
+  private initializeIntegrations(): void {
+    const integrations = config.integrations;
+
+    if (integrations.google) {
+      try {
+        this.googleClient = new GoogleWorkspaceClient(
+          integrations.google.clientId,
+          integrations.google.clientSecret,
+          integrations.google.refreshToken
+        );
+        logger.info('Google Workspace integration initialized');
+      } catch (error: any) {
+        logger.error('Failed to initialize Google Workspace', { error: error.message });
+      }
+    } else {
+      logger.info('Google Workspace not configured (skipping)');
+    }
+
+    if (integrations.notion) {
+      try {
+        this.notionClient = new NotionClient(integrations.notion.apiKey);
+        logger.info('Notion integration initialized');
+      } catch (error: any) {
+        logger.error('Failed to initialize Notion', { error: error.message });
+      }
+    } else {
+      logger.info('Notion not configured (skipping)');
+    }
+
+    if (integrations.slack) {
+      try {
+        this.slackClient = new SlackClient(integrations.slack.botToken);
+        logger.info('Slack integration initialized');
+      } catch (error: any) {
+        logger.error('Failed to initialize Slack', { error: error.message });
+      }
+    } else {
+      logger.info('Slack not configured (skipping)');
+    }
+
+    if (integrations.erp) {
+      try {
+        this.erpClient = new ErpClient(integrations.erp.apiUrl, integrations.erp.apiKey);
+        logger.info('ERP integration initialized');
+      } catch (error: any) {
+        logger.error('Failed to initialize ERP', { error: error.message });
+      }
+    } else {
+      logger.info('ERP not configured (skipping)');
+    }
   }
 
   /**
@@ -288,147 +353,86 @@ export class MCPService {
   // These are placeholder implementations - replace with actual API calls
   // =====================================================================
 
+  // =====================================================================
+  // REAL INTEGRATION HANDLERS
+  // Each checks if its client is configured, then delegates the API call
+  // =====================================================================
+
   private async erpGetInventory(params: any): Promise<any> {
-    // TODO: Implement actual ERP API call
-    return {
-      sku: 'CD-HM-001',
-      productName: "Carol's Daughter Hair Milk Moisturizer",
-      brand: "Carol's Daughter",
-      currentStock: 847,
-      warehouseStock: 612,
-      inTransit: 235,
-      reorderPoint: 500,
-      locations: [
-        { name: 'Main Warehouse', quantity: 612 },
-        { name: 'Distribution Center East', quantity: 150 },
-        { name: 'Distribution Center West', quantity: 85 },
-      ],
-    };
+    if (!this.erpClient) {
+      return { error: 'ERP integration not configured.', hint: 'Set ERP_API_URL and ERP_API_KEY environment variables.' };
+    }
+    return await this.erpClient.getInventory(params);
   }
 
   private async erpGetPOStatus(params: any): Promise<any> {
-    // TODO: Implement actual ERP API call
-    return {
-      poNumber: params.poNumber,
-      vendor: 'BeautySource LLC',
-      status: 'approved',
-      orderDate: '2026-02-28',
-      expectedDate: '2026-03-15',
-      total: 12450.00,
-      currency: 'USD',
-      items: [
-        { sku: 'CD-HM-001', description: 'Hair Milk 12oz', quantity: 500, unitPrice: 8.50, total: 4250 },
-        { sku: 'CD-HM-002', description: 'Hair Milk 24oz', quantity: 300, unitPrice: 15.00, total: 4500 },
-      ],
-      approver: 'Sarah Chen',
-      approvalDate: '2026-03-01',
-    };
+    if (!this.erpClient) {
+      return { error: 'ERP integration not configured.', hint: 'Set ERP_API_URL and ERP_API_KEY environment variables.' };
+    }
+    return await this.erpClient.getPOStatus(params);
   }
 
   private async erpCreatePO(params: any): Promise<any> {
-    // TODO: Implement actual ERP API call
-    return {
-      poNumber: 'PO-' + Date.now(),
-      status: 'draft',
-      message: 'Purchase order created successfully',
-    };
+    if (!this.erpClient) {
+      return { error: 'ERP integration not configured.', hint: 'Set ERP_API_URL and ERP_API_KEY environment variables.' };
+    }
+    return await this.erpClient.createPO(params);
   }
 
   private async gmailSearchMessages(params: any): Promise<any> {
-    // TODO: Implement Gmail API call
-    return {
-      messages: [
-        {
-          id: '123',
-          from: 'vendor@example.com',
-          subject: 'Invoice #INV-2024-001',
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    };
+    if (!this.googleClient) {
+      return { error: 'Gmail not configured.', hint: 'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.' };
+    }
+    return await this.googleClient.searchMessages(params);
   }
 
   private async gmailSendMessage(params: any): Promise<any> {
-    // TODO: Implement Gmail API call
-    return {
-      messageId: 'msg-' + Date.now(),
-      status: 'sent',
-    };
+    if (!this.googleClient) {
+      return { error: 'Gmail not configured.', hint: 'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.' };
+    }
+    return await this.googleClient.sendMessage(params);
   }
 
   private async gcalListEvents(params: any): Promise<any> {
-    // TODO: Implement Google Calendar API call
-    return {
-      events: [
-        {
-          id: 'evt-123',
-          title: 'Team Meeting',
-          startTime: new Date().toISOString(),
-          endTime: new Date(Date.now() + 3600000).toISOString(),
-        },
-      ],
-    };
+    if (!this.googleClient) {
+      return { error: 'Google Calendar not configured.', hint: 'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.' };
+    }
+    return await this.googleClient.listEvents(params);
   }
 
   private async gcalCreateEvent(params: any): Promise<any> {
-    // TODO: Implement Google Calendar API call
-    return {
-      eventId: 'evt-' + Date.now(),
-      title: params.title,
-      meetingLink: 'https://meet.google.com/abc-defg-hij',
-      status: 'confirmed',
-    };
+    if (!this.googleClient) {
+      return { error: 'Google Calendar not configured.', hint: 'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.' };
+    }
+    return await this.googleClient.createEvent(params);
   }
 
   private async gdriveSearch(params: any): Promise<any> {
-    // TODO: Implement Google Drive API call
-    return {
-      files: [
-        {
-          id: 'file-123',
-          name: 'Q1 Warehouse Report.pdf',
-          mimeType: 'application/pdf',
-          url: 'https://drive.google.com/file/d/abc123',
-        },
-      ],
-    };
+    if (!this.googleClient) {
+      return { error: 'Google Drive not configured.', hint: 'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.' };
+    }
+    return await this.googleClient.searchFiles(params);
   }
 
   private async notionSearch(params: any): Promise<any> {
-    // TODO: Implement Notion API call
-    return {
-      results: [
-        {
-          id: 'page-123',
-          title: 'Product Roadmap 2026',
-          url: 'https://notion.so/page-123',
-        },
-      ],
-    };
+    if (!this.notionClient) {
+      return { error: 'Notion not configured.', hint: 'Set NOTION_API_KEY environment variable.' };
+    }
+    return await this.notionClient.search(params);
   }
 
   private async slackSendMessage(params: any): Promise<any> {
-    // TODO: Implement Slack API call
-    return {
-      messageTs: Date.now().toString(),
-      channel: params.channel,
-      status: 'sent',
-    };
+    if (!this.slackClient) {
+      return { error: 'Slack not configured.', hint: 'Set SLACK_BOT_TOKEN environment variable.' };
+    }
+    return await this.slackClient.sendMessage(params);
   }
 
+  // CareFlow: Intentionally not implemented yet
   private async careflowGetTickets(params: any): Promise<any> {
-    // TODO: Implement CareFlow API call
     return {
-      tickets: [
-        {
-          id: 'TCK-001',
-          customer: 'customer@example.com',
-          subject: 'Product inquiry',
-          status: 'open',
-          priority: 'medium',
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      error: 'CareFlow integration coming soon.',
+      tickets: [],
     };
   }
 
