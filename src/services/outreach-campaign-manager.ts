@@ -309,10 +309,10 @@ Return only the personalized message, no explanations.`;
       });
 
       // Schedule next step if applicable
-      const campaign = this.campaigns.get(message.campaignId);
-      if (campaign && message.stepNumber < campaign.sequence.length) {
+      const nextCampaign = this.campaigns.get(message.campaignId);
+      if (nextCampaign && message.stepNumber < nextCampaign.sequence.length) {
         await this.scheduleStep(
-          campaign,
+          nextCampaign,
           message.contact,
           message.stepNumber + 1
         );

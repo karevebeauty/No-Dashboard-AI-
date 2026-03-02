@@ -409,7 +409,7 @@ Code expires in ${this.settings.passcode.expiryMinutes} minutes.`;
 
     const securityLevel = userResult.rows[0]?.security_level || 'standard';
 
-    const sessionTimeout = this.settings.sessionTimeout[securityLevel];
+    const sessionTimeout = (this.settings.sessionTimeout as Record<string, number>)[securityLevel];
     
     const session: SecuritySession = {
       sessionId: crypto.randomBytes(32).toString('hex'),

@@ -198,6 +198,9 @@ export class MCPService {
       annotations: { readOnlyHint: true },
     }, this.careflowGetTickets.bind(this));
 
+    // Web Scraping & Research Tools
+    this.registerWebScrapingTools();
+
     logger.info(`Registered ${this.tools.size} MCP tools`);
   }
 
@@ -428,7 +431,6 @@ export class MCPService {
       ],
     };
   }
-}
 
   /**
    * Register web scraping and research tools
@@ -618,3 +620,4 @@ export class MCPService {
       message: 'Price monitoring activated. You will receive alerts when price changes.',
     };
   }
+}
