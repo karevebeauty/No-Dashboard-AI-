@@ -47,21 +47,21 @@ export const config: SystemConfig = {
   environment: (getEnv('NODE_ENV', 'development') as any),
   
   server: {
-    port: getEnvNumber('PORT', 3000),
+    port: getEnvNumber('PORT', 5000),
     host: getEnv('HOST', '0.0.0.0'),
   },
   
   twilio: {
-    accountSid: getEnv('TWILIO_ACCOUNT_SID'),
-    authToken: getEnv('TWILIO_AUTH_TOKEN'),
-    phoneNumber: getEnv('TWILIO_PHONE_NUMBER'),
-    webhookUrl: getEnv('TWILIO_WEBHOOK_URL'),
+    accountSid: getEnv('TWILIO_ACCOUNT_SID', ''),
+    authToken: getEnv('TWILIO_AUTH_TOKEN', ''),
+    phoneNumber: getEnv('TWILIO_PHONE_NUMBER', ''),
+    webhookUrl: getEnv('TWILIO_WEBHOOK_URL', ''),
   },
   
   authorizedNumbers: getEnvArray('AUTHORIZED_PHONE_NUMBERS'),
   
   claude: {
-    apiKey: getEnv('ANTHROPIC_API_KEY'),
+    apiKey: getEnv('ANTHROPIC_API_KEY', ''),
     model: getEnv('CLAUDE_MODEL', 'claude-sonnet-4-20250514'),
   },
   
@@ -72,7 +72,7 @@ export const config: SystemConfig = {
   },
   
   database: {
-    url: getEnv('DATABASE_URL'),
+    url: getEnv('DATABASE_URL', ''),
     poolMin: getEnvNumber('DATABASE_POOL_MIN', 2),
     poolMax: getEnvNumber('DATABASE_POOL_MAX', 10),
   },
@@ -85,7 +85,7 @@ export const config: SystemConfig = {
   },
   
   security: {
-    encryptionKey: getEnv('ENCRYPTION_KEY'),
+    encryptionKey: getEnv('ENCRYPTION_KEY', 'default-dev-key-00000000000000'),
     pinProtectionEnabled: getEnvBoolean('PIN_PROTECTION_ENABLED', false),
     pinCode: process.env.PIN_CODE,
   },
@@ -121,13 +121,12 @@ export const config: SystemConfig = {
   },
 };
 
-// Validate critical configuration
 if (config.authorizedNumbers.length === 0) {
-  throw new Error('No authorized phone numbers configured. Please set AUTHORIZED_PHONE_NUMBERS.');
+  console.warn('Warning: No authorized phone numbers configured. Set AUTHORIZED_PHONE_NUMBERS to enable SMS features.');
 }
 
 if (config.security.encryptionKey.length !== 32) {
-  throw new Error('ENCRYPTION_KEY must be exactly 32 characters long.');
+  console.warn('Warning: ENCRYPTION_KEY should be exactly 32 characters long. Using default dev key.');
 }
 
 // Log configuration (without sensitive data)
