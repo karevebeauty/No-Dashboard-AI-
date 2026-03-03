@@ -17,21 +17,16 @@ import { errorHandler } from './utils/error-handler';
 
 class SMSAgentServer {
   private app: express.Application;
-  private messageRouter: MessageRouter;
-  private redisClient: RedisClient;
-  private database: Database;
+  private messageRouter: MessageRouter | null = null;
+  private redisClient: RedisClient | null = null;
+  private database: Database | null = null;
   private healthCheckService: HealthCheckService;
-  private notificationService: NotificationService;
-  private personalAssistant: PersonalAssistantService;
+  private notificationService: NotificationService | null = null;
+  private personalAssistant: PersonalAssistantService | null = null;
 
   constructor() {
     this.app = express();
-    this.redisClient = new RedisClient(config.redis);
-    this.database = new Database(config.database);
-    this.messageRouter = new MessageRouter(this.redisClient);
     this.healthCheckService = new HealthCheckService();
-    this.notificationService = new NotificationService();
-    this.personalAssistant = new PersonalAssistantService(this.messageRouter);
   }
 
   private setupMiddleware(): void {
@@ -49,16 +44,14 @@ class SMSAgentServer {
       },
     }));
     this.app.use(cors());
-    
-    // Compression
     this.app.use(compression());
-    
-    // Body parsing
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: true }));
-    
-    // Request logging
+
+    this.app.use(express.static(path.join(__dirname, '..', 'public')));
+
     this.app.use((req, res, next) => {
+      if (!req.path.startsWith('/api/') && req.path !== '/health') return next();
       logger.info(`${req.method} ${req.path}`, {
         ip: req.ip,
         userAgent: req.get('user-agent'),
@@ -68,7 +61,39 @@ class SMSAgentServer {
   }
 
   private setupRoutes(): void {
-    // Health check endpoint
+    this.app.get('/api/status', (req, res) => {
+      const twilioConfigured = !!(config.twilio.accountSid && config.twilio.authToken);
+      const claudeConfigured = !!config.claude.apiKey;
+      const mem = process.memoryUsage();
+
+      res.json({
+        name: 'SMS Agent Server',
+        status: 'running',
+        version: '1.0.0',
+        environment: config.environment,
+        uptime: Math.floor(process.uptime()),
+        port: config.server.port,
+        host: config.server.host,
+        pid: process.pid,
+        nodeVersion: process.version,
+        platform: process.platform,
+        memory: `${Math.round(mem.heapUsed / 1024 / 1024)}MB`,
+        authorizedNumbers: config.authorizedNumbers.length,
+        services: {
+          twilio: twilioConfigured ? 'configured' : 'not configured',
+          claude: claudeConfigured ? 'configured' : 'not configured',
+          redis: this.redisClient ? 'connected' : 'not connected',
+          database: this.database ? 'connected' : 'not connected',
+        },
+        integrations: {
+          google: !!config.integrations.google,
+          notion: !!config.integrations.notion,
+          slack: !!config.integrations.slack,
+          erp: !!config.integrations.erp,
+        },
+      });
+    });
+
     this.app.get('/health', async (req, res) => {
       try {
         const health = await this.healthCheckService.check();
@@ -83,16 +108,17 @@ class SMSAgentServer {
       }
     });
 
-    // Metrics endpoint (if enabled)
     if (config.monitoring.enableMetrics) {
       this.app.get('/metrics', async (req, res) => {
-        // TODO: Implement Prometheus metrics
         res.json({ message: 'Metrics endpoint' });
       });
     }
 
-    // SMS webhook endpoint (Twilio)
     this.app.post('/sms/webhook', async (req, res) => {
+      if (!this.messageRouter) {
+        res.status(503).json({ error: 'SMS services not configured. Set TWILIO and ANTHROPIC environment variables.' });
+        return;
+      }
       try {
         await this.messageRouter.handleInboundMessage(req, res);
       } catch (error) {
@@ -101,7 +127,6 @@ class SMSAgentServer {
       }
     });
 
-    // SMS status callback (optional, for delivery tracking)
     this.app.post('/sms/status', async (req, res) => {
       try {
         const { MessageSid, MessageStatus, To, ErrorCode } = req.body;
@@ -118,9 +143,12 @@ class SMSAgentServer {
       }
     });
 
-    // Manual notification trigger (for testing)
     if (config.environment !== 'production') {
       this.app.post('/notifications/trigger', async (req, res) => {
+        if (!this.notificationService) {
+          res.status(503).json({ error: 'Notification service not available' });
+          return;
+        }
         try {
           const { triggerId, data } = req.body;
           await this.notificationService.triggerNotification(triggerId, data);
@@ -160,37 +188,73 @@ class SMSAgentServer {
     logger.info('Initializing services...');
 
     try {
-      // Connect to Redis
+      this.redisClient = new RedisClient(config.redis);
       await this.redisClient.connect();
       logger.info('Redis connected');
+    } catch (error) {
+      logger.warn('Redis not available - continuing without Redis', { error });
+      this.redisClient = null;
+    }
 
-      // Connect to Database
-      await this.database.connect();
-      logger.info('Database connected');
+    if (config.database.url) {
+      try {
+        this.database = new Database(config.database);
+        await this.database.connect();
+        logger.info('Database connected');
+      } catch (error) {
+        logger.warn('Database not available - continuing without database', { error });
+        this.database = null;
+      }
+    } else {
+      logger.warn('Skipping Database - DATABASE_URL not configured');
+    }
 
-      // Initialize Message Router
-      await this.messageRouter.initialize();
-      logger.info('Message Router initialized');
+    const twilioConfigured = !!(config.twilio.accountSid && config.twilio.authToken);
+    const claudeConfigured = !!config.claude.apiKey;
 
-      // Start Health Check Service
-      this.healthCheckService.start();
-      logger.info('Health Check Service started');
+    if (twilioConfigured && claudeConfigured && this.redisClient) {
+      try {
+        this.messageRouter = new MessageRouter(this.redisClient);
+        await this.messageRouter.initialize();
+        logger.info('Message Router initialized');
+      } catch (error) {
+        logger.warn('Message Router failed to initialize', { error });
+        this.messageRouter = null;
+      }
+    } else {
+      logger.warn('Skipping Message Router - missing Twilio/Claude/Redis configuration');
+    }
 
-      // Start Notification Service
-      if (config.notifications.enabled) {
+    this.healthCheckService.start();
+    logger.info('Health Check Service started');
+
+    if (config.notifications.enabled && twilioConfigured) {
+      try {
+        this.notificationService = new NotificationService();
         await this.notificationService.start();
         logger.info('Notification Service started');
+      } catch (error) {
+        logger.warn('Notification Service failed to start', { error });
+        this.notificationService = null;
       }
-
-      // Start Personal Assistant Service (cron jobs for briefings/reminders)
-      await this.personalAssistant.initialize();
-      logger.info('Personal Assistant Service started');
-
-      logger.info('All services initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize services', { error });
-      throw error;
+    } else {
+      logger.warn('Skipping Notification Service - Twilio not configured or notifications disabled');
     }
+
+    if (this.messageRouter) {
+      try {
+        this.personalAssistant = new PersonalAssistantService(this.messageRouter);
+        await this.personalAssistant.initialize();
+        logger.info('Personal Assistant Service started');
+      } catch (error) {
+        logger.warn('Personal Assistant Service failed to start', { error });
+        this.personalAssistant = null;
+      }
+    } else {
+      logger.warn('Skipping Personal Assistant Service - Message Router not available');
+    }
+
+    logger.info('Service initialization complete');
   }
 
   private async shutdown(): Promise<void> {

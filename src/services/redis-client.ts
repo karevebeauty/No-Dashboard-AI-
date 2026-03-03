@@ -12,28 +12,40 @@ export class RedisClient {
 
   async connect(): Promise<void> {
     try {
-      // Replit provides Redis via environment variable
-      const redisUrl = process.env.REPLIT_DB_URL || this.config.url;
+      const redisUrl = this.config.url;
       
       this.client = new Redis(redisUrl, {
         password: this.config.password,
         retryStrategy: (times) => {
+          if (times > 3) {
+            return null;
+          }
           const delay = Math.min(times * 50, 2000);
           return delay;
         },
+        maxRetriesPerRequest: 3,
+        connectTimeout: 5000,
+        lazyConnect: true,
       });
 
       this.client.on('error', (error) => {
-        logger.error('Redis error', { error });
+        if (error.code !== 'ENOENT' && error.code !== 'ECONNREFUSED') {
+          logger.error('Redis error', { error });
+        }
       });
 
       this.client.on('connect', () => {
         logger.info('Redis connected');
       });
 
+      await this.client.connect();
       await this.client.ping();
     } catch (error) {
       logger.error('Failed to connect to Redis', { error });
+      if (this.client) {
+        this.client.disconnect();
+        this.client = null;
+      }
       throw error;
     }
   }
