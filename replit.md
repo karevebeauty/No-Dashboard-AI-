@@ -28,8 +28,16 @@ src/
   utils/                - Logger, error handler, response formatter
 ```
 
+## Frontend Dashboard
+- Static files served from `public/` directory
+- `public/index.html` - Main dashboard page
+- `public/styles.css` - Dark theme styles
+- `public/app.js` - Dashboard client logic
+- Pages: Overview, Services, Messages, Integrations, Logs, Settings
+
 ## Key Endpoints
-- `GET /` - Status page with service health
+- `GET /` - Dashboard UI
+- `GET /api/status` - Server status JSON (used by dashboard)
 - `GET /health` - Health check
 - `POST /sms/webhook` - Twilio SMS webhook
 - `POST /sms/status` - SMS delivery status callback

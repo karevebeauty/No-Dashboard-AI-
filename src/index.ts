@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -28,19 +29,19 @@ class SMSAgentServer {
   }
 
   private setupMiddleware(): void {
-    // Security middleware
-    this.app.use(helmet());
+    this.app.use(helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }));
     this.app.use(cors());
-    
-    // Compression
     this.app.use(compression());
-    
-    // Body parsing
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: true }));
-    
-    // Request logging
+
+    this.app.use(express.static(path.join(__dirname, '..', 'public')));
+
     this.app.use((req, res, next) => {
+      if (!req.path.startsWith('/api/') && req.path !== '/health') return next();
       logger.info(`${req.method} ${req.path}`, {
         ip: req.ip,
         userAgent: req.get('user-agent'),
@@ -50,11 +51,10 @@ class SMSAgentServer {
   }
 
   private setupRoutes(): void {
-    this.app.get('/', (req, res) => {
+    this.app.get('/api/status', (req, res) => {
       const twilioConfigured = !!(config.twilio.accountSid && config.twilio.authToken);
       const claudeConfigured = !!config.claude.apiKey;
-      const redisConnected = !!this.redisClient;
-      const dbConnected = !!this.database;
+      const mem = process.memoryUsage();
 
       res.json({
         name: 'SMS Agent Server',
@@ -62,11 +62,24 @@ class SMSAgentServer {
         version: '1.0.0',
         environment: config.environment,
         uptime: Math.floor(process.uptime()),
+        port: config.server.port,
+        host: config.server.host,
+        pid: process.pid,
+        nodeVersion: process.version,
+        platform: process.platform,
+        memory: `${Math.round(mem.heapUsed / 1024 / 1024)}MB`,
+        authorizedNumbers: config.authorizedNumbers.length,
         services: {
           twilio: twilioConfigured ? 'configured' : 'not configured',
           claude: claudeConfigured ? 'configured' : 'not configured',
-          redis: redisConnected ? 'connected' : 'not connected',
-          database: dbConnected ? 'connected' : 'not connected',
+          redis: this.redisClient ? 'connected' : 'not connected',
+          database: this.database ? 'connected' : 'not connected',
+        },
+        integrations: {
+          google: !!config.integrations.google,
+          notion: !!config.integrations.notion,
+          slack: !!config.integrations.slack,
+          erp: !!config.integrations.erp,
         },
       });
     });
