@@ -373,4 +373,58 @@ INSERT INTO system_settings (key, value, description) VALUES
   ('maintenance_mode', 'false', 'System maintenance mode flag')
 ON CONFLICT (key) DO NOTHING;
 
+-- ==========================================
+-- ADMIN DASHBOARD MIGRATIONS
+-- ==========================================
+
+-- Add agent configuration columns to assistant_profiles
+ALTER TABLE assistant_profiles ADD COLUMN IF NOT EXISTS system_prompt TEXT DEFAULT '';
+ALTER TABLE assistant_profiles ADD COLUMN IF NOT EXISTS llm_model VARCHAR(100) DEFAULT 'claude-sonnet-4-20250514';
+ALTER TABLE assistant_profiles ADD COLUMN IF NOT EXISTS message_limit INTEGER DEFAULT 100;
+ALTER TABLE assistant_profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE assistant_profiles ADD COLUMN IF NOT EXISTS tier VARCHAR(20) DEFAULT 'free';
+ALTER TABLE assistant_profiles ADD COLUMN IF NOT EXISTS behavior JSONB DEFAULT '{"responseStyle":"balanced","proactiveAlerts":false,"learningEnabled":true,"contextRetention":"daily","autoSummarization":false}';
+
+-- Add columns AdminDashboardService expects on user_accounts
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS assistant_profile_id VARCHAR(100);
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS hashed_passcode VARCHAR(255);
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS usage JSONB DEFAULT '{"messagesThisMonth":0,"storageUsed":0,"documentsCreated":0}';
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS context JSONB DEFAULT '{"preferences":{},"memories":0,"documents":0,"conversations":0}';
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS storage_used BIGINT DEFAULT 0;
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS requires_reauth BOOLEAN DEFAULT false;
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS current_session_id VARCHAR(100);
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP;
+
+-- Fix admin_actions: add columns that TypeScript service writes to
+ALTER TABLE admin_actions ADD COLUMN IF NOT EXISTS target_user_id VARCHAR(100);
+ALTER TABLE admin_actions ADD COLUMN IF NOT EXISTS target_profile_id VARCHAR(100);
+ALTER TABLE admin_actions ADD COLUMN IF NOT EXISTS changes JSONB DEFAULT '{}';
+
+-- Subscription tiers table
+CREATE TABLE IF NOT EXISTS subscription_tiers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(50) UNIQUE NOT NULL,
+  description TEXT,
+  price_monthly DECIMAL(10,2) DEFAULT 0,
+  message_limit INTEGER DEFAULT 100,
+  features JSONB DEFAULT '{}',
+  agent_ids TEXT[] DEFAULT '{}',
+  is_active BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscription_tiers_slug ON subscription_tiers(slug);
+CREATE INDEX IF NOT EXISTS idx_subscription_tiers_active ON subscription_tiers(is_active) WHERE is_active = true;
+
+-- Seed default subscription tiers
+INSERT INTO subscription_tiers (name, slug, description, price_monthly, message_limit, features, sort_order)
+VALUES
+  ('Free', 'free', 'Basic access with limited messages', 0, 50, '{"basicAssistant":true,"memoryBank":false,"webScraping":false}', 0),
+  ('Pro', 'pro', 'Full access to all core features', 29.00, 500, '{"basicAssistant":true,"memoryBank":true,"webScraping":true,"salesTools":true}', 1),
+  ('Enterprise', 'enterprise', 'Unlimited access with priority support', 99.00, 5000, '{"basicAssistant":true,"memoryBank":true,"webScraping":true,"salesTools":true,"autonomousActions":true,"apiAccess":true}', 2)
+ON CONFLICT (slug) DO NOTHING;
+
 SELECT 'Database setup complete! All tables created.' as status;

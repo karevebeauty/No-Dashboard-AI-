@@ -1,0 +1,87 @@
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #1f2937; }
+::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+[x-cloak] { display: none !important; }
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #374151;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toggle-switch.active { background: #3b82f6; }
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle-switch.active::after { transform: translateX(20px); }
+
+/* Modal overlay */
+.modal-overlay {
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* Stat card accents */
+.stat-blue { border-left: 4px solid #3b82f6; }
+.stat-green { border-left: 4px solid #10b981; }
+.stat-purple { border-left: 4px solid #8b5cf6; }
+.stat-amber { border-left: 4px solid #f59e0b; }
+
+/* System prompt editor */
+.prompt-editor {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 200px;
+  resize: vertical;
+}
+
+/* Sidebar nav item */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { color: #e5e7eb; background: rgba(55,65,81,0.5); }
+.nav-item.active {
+  color: #ffffff;
+  background: rgba(59,130,246,0.1);
+  border-left-color: #3b82f6;
+}
+
+/* Table row hover */
+tbody tr:hover { background: rgba(55,65,81,0.3); }
+
+/* Badge styles */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.badge-free { background: #374151; color: #9ca3af; }
+.badge-pro { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-enterprise { background: rgba(139,92,246,0.15); color: #a78bfa; }
+.badge-active { background: rgba(16,185,129,0.15); color: #34d399; }
+.badge-inactive { background: rgba(239,68,68,0.15); color: #f87171; }

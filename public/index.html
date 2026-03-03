@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMS Agent Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <style>[x-cloak]{display:none!important}</style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen" x-data="adminApp()" x-init="init()" x-cloak>
+
+  <!-- ==================== LOGIN ==================== -->
+  <div x-show="!authenticated" class="min-h-screen flex items-center justify-center">
+    <div class="bg-gray-800 rounded-xl shadow-2xl p-8 w-full max-w-sm">
+      <div class="text-center mb-8">
+        <div class="text-3xl font-bold text-white mb-2">SMS Agent</div>
+        <div class="text-gray-400 text-sm">Admin Dashboard</div>
+      </div>
+      <form @submit.prevent="login()">
+        <label class="block text-sm text-gray-400 mb-2">Admin Password</label>
+        <input type="password" x-model="loginPassword"
+          class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-4"
+          placeholder="Enter admin password" autofocus>
+        <div x-show="loginError" class="text-red-400 text-sm mb-4" x-text="loginError"></div>
+        <button type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN DASHBOARD ==================== -->
+  <div x-show="authenticated" class="flex h-screen overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col shrink-0">
+      <div class="p-6">
+        <div class="text-xl font-bold text-white">SMS Agent</div>
+        <div class="text-xs text-gray-500 mt-1">Admin Manager</div>
+      </div>
+      <nav class="flex-1 mt-2">
+        <div class="nav-item" :class="{'active': currentTab === 'dashboard'}" @click="switchTab('dashboard')">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          Dashboard
+        </div>
+        <div class="nav-item" :class="{'active': currentTab === 'users'}" @click="switchTab('users')">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          Users
+        </div>
+        <div class="nav-item" :class="{'active': currentTab === 'agents'}" @click="switchTab('agents')">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Agents
+        </div>
+        <div class="nav-item" :class="{'active': currentTab === 'tiers'}" @click="switchTab('tiers')">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Subscription Tiers
+        </div>
+        <div class="nav-item" :class="{'active': currentTab === 'logs'}" @click="switchTab('logs')">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Activity Log
+        </div>
+      </nav>
+      <div class="p-4 border-t border-gray-700">
+        <button @click="logout()" class="text-gray-400 hover:text-white text-sm w-full text-left">Sign Out</button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 overflow-y-auto">
+      <div class="p-8">
+
+        <!-- ==================== DASHBOARD TAB ==================== -->
+        <div x-show="currentTab === 'dashboard'">
+          <h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gray-800 rounded-xl p-6 stat-blue">
+              <div class="text-gray-400 text-sm mb-1">Total Users</div>
+              <div class="text-3xl font-bold" x-text="stats.totalUsers"></div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6 stat-green">
+              <div class="text-gray-400 text-sm mb-1">Active Today</div>
+              <div class="text-3xl font-bold" x-text="stats.activeUsers"></div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6 stat-purple">
+              <div class="text-gray-400 text-sm mb-1">Total Agents</div>
+              <div class="text-3xl font-bold" x-text="stats.totalProfiles"></div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6 stat-amber">
+              <div class="text-gray-400 text-sm mb-1">Monthly Revenue</div>
+              <div class="text-3xl font-bold" x-text="formatCurrency(stats.revenue?.mrr)"></div>
+              <div class="text-gray-500 text-xs mt-1" x-text="'ARR: ' + formatCurrency(stats.revenue?.arr)"></div>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-gray-800 rounded-xl p-6">
+              <h3 class="text-lg font-semibold mb-4">Active Agents</h3>
+              <template x-for="agent in agents.slice(0, 5)" :key="agent.id">
+                <div class="flex justify-between items-center py-3 border-b border-gray-700 last:border-0">
+                  <div>
+                    <div class="font-medium" x-text="agent.name"></div>
+                    <div class="text-sm text-gray-400" x-text="agent.llmModel"></div>
+                  </div>
+                  <span class="badge" :class="tierBadgeClass(agent.tier)" x-text="agent.tier"></span>
+                </div>
+              </template>
+              <div x-show="agents.length === 0" class="text-gray-500 text-sm py-4">No agents created yet</div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-6">
+              <h3 class="text-lg font-semibold mb-4">Subscription Tiers</h3>
+              <template x-for="tier in tiers" :key="tier.id">
+                <div class="flex justify-between items-center py-3 border-b border-gray-700 last:border-0">
+                  <div>
+                    <div class="font-medium" x-text="tier.name"></div>
+                    <div class="text-sm text-gray-400" x-text="tier.messageLimit + ' msg/mo'"></div>
+                  </div>
+                  <div class="text-lg font-semibold" x-text="formatCurrency(tier.priceMonthly) + '/mo'"></div>
+                </div>
+              </template>
+              <div x-show="tiers.length === 0" class="text-gray-500 text-sm py-4">No tiers created yet</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== USERS TAB ==================== -->
+        <div x-show="currentTab === 'users'">
+          <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Users</h1>
+          </div>
+
+          <!-- Search / Filter -->
+          <div class="flex gap-4 mb-6">
+            <input type="text" x-model="userSearch" @input.debounce.300ms="loadUsers()"
+              placeholder="Search by name, phone, or email..."
+              class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500">
+            <select x-model="userTierFilter" @change="loadUsers()"
+              class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+              <option value="">All Tiers</option>
+              <option value="free">Free</option>
+              <option value="pro">Pro</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+
+          <!-- Users Table -->
+          <div class="bg-gray-800 rounded-xl overflow-hidden">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-gray-700">
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Name</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Phone</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Email</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Agent</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Tier</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Status</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Joined</th>
+                  <th class="text-right px-6 py-4 text-sm text-gray-400 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="user in users" :key="user.id">
+                  <tr class="border-b border-gray-700/50">
+                    <td class="px-6 py-4 font-medium" x-text="user.name || 'N/A'"></td>
+                    <td class="px-6 py-4 text-gray-300" x-text="user.phoneNumber"></td>
+                    <td class="px-6 py-4 text-gray-300" x-text="user.email || 'N/A'"></td>
+                    <td class="px-6 py-4 text-gray-300" x-text="getAgentName(user.assistantProfileId)"></td>
+                    <td class="px-6 py-4"><span class="badge" :class="tierBadgeClass(user.subscriptionTier)" x-text="user.subscriptionTier"></span></td>
+                    <td class="px-6 py-4"><span class="badge" :class="user.isActive ? 'badge-active' : 'badge-inactive'" x-text="user.isActive ? 'Active' : 'Inactive'"></span></td>
+                    <td class="px-6 py-4 text-gray-400 text-sm" x-text="formatDate(user.createdAt)"></td>
+                    <td class="px-6 py-4 text-right">
+                      <button @click="viewUser(user)" class="text-blue-400 hover:text-blue-300 text-sm">Edit</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div x-show="users.length === 0" class="text-center text-gray-500 py-12">No users found</div>
+          </div>
+        </div>
+
+        <!-- ==================== AGENTS TAB ==================== -->
+        <div x-show="currentTab === 'agents'">
+          <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Agents</h1>
+            <button @click="newAgent()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Create Agent
+            </button>
+          </div>
+
+          <!-- Agent Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="agent in agents" :key="agent.id">
+              <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition cursor-pointer" @click="editAgent(agent)">
+                <div class="flex justify-between items-start mb-3">
+                  <h3 class="text-lg font-semibold" x-text="agent.name"></h3>
+                  <span class="badge" :class="tierBadgeClass(agent.tier)" x-text="agent.tier"></span>
+                </div>
+                <p class="text-gray-400 text-sm mb-4 line-clamp-2" x-text="agent.description || 'No description'"></p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                  <span class="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded" x-text="agent.llmModel"></span>
+                  <span class="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded" x-text="agent.messageLimit + ' msg/mo'"></span>
+                </div>
+                <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                  <div class="text-xs text-gray-500" x-text="'Created ' + formatDate(agent.createdAt)"></div>
+                  <button @click.stop="deleteAgent(agent.id)" class="text-red-400 hover:text-red-300 text-xs">Delete</button>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div x-show="agents.length === 0" class="text-center text-gray-500 py-16 bg-gray-800 rounded-xl">
+            <p class="text-lg mb-2">No agents yet</p>
+            <p class="text-sm">Create your first text agent to get started</p>
+          </div>
+        </div>
+
+        <!-- ==================== TIERS TAB ==================== -->
+        <div x-show="currentTab === 'tiers'">
+          <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Subscription Tiers</h1>
+            <button @click="newTier()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Create Tier
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="tier in tiers" :key="tier.id">
+              <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition cursor-pointer" @click="editTier(tier)">
+                <div class="flex justify-between items-start mb-2">
+                  <h3 class="text-xl font-bold" x-text="tier.name"></h3>
+                  <div>
+                    <span class="text-2xl font-bold text-blue-400" x-text="formatCurrency(tier.priceMonthly)"></span>
+                    <span class="text-gray-500 text-sm">/mo</span>
+                  </div>
+                </div>
+                <p class="text-gray-400 text-sm mb-4" x-text="tier.description || 'No description'"></p>
+                <div class="mb-4">
+                  <div class="text-sm text-gray-400 mb-2" x-text="tier.messageLimit + ' messages/month'"></div>
+                </div>
+                <div class="mb-4">
+                  <div class="text-xs text-gray-500 mb-2">Features:</div>
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="(enabled, feature) in tier.features" :key="feature">
+                      <span x-show="enabled" class="text-xs bg-green-900/30 text-green-400 px-2 py-0.5 rounded" x-text="feature"></span>
+                    </template>
+                  </div>
+                </div>
+                <div class="mb-4" x-show="tier.agentIds && tier.agentIds.length > 0">
+                  <div class="text-xs text-gray-500 mb-2">Agents in this tier:</div>
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="agentId in tier.agentIds" :key="agentId">
+                      <span class="text-xs bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded" x-text="getAgentName(agentId)"></span>
+                    </template>
+                  </div>
+                </div>
+                <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                  <span class="text-xs text-gray-500" x-text="'Order: ' + tier.sortOrder"></span>
+                  <button @click.stop="deleteTier(tier.id)" class="text-red-400 hover:text-red-300 text-xs">Delete</button>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div x-show="tiers.length === 0" class="text-center text-gray-500 py-16 bg-gray-800 rounded-xl">
+            <p class="text-lg mb-2">No subscription tiers</p>
+            <p class="text-sm">Create tiers to manage pricing and access</p>
+          </div>
+        </div>
+
+        <!-- ==================== LOGS TAB ==================== -->
+        <div x-show="currentTab === 'logs'">
+          <h1 class="text-2xl font-bold mb-6">Activity Log</h1>
+          <div class="bg-gray-800 rounded-xl overflow-hidden">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-gray-700">
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Time</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Action</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Target</th>
+                  <th class="text-left px-6 py-4 text-sm text-gray-400 font-medium">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="log in logs" :key="log.id">
+                  <tr class="border-b border-gray-700/50">
+                    <td class="px-6 py-3 text-sm text-gray-400" x-text="formatDate(log.timestamp)"></td>
+                    <td class="px-6 py-3"><span class="text-sm font-medium" x-text="log.action"></span></td>
+                    <td class="px-6 py-3 text-sm text-gray-400" x-text="log.targetUserId || log.targetProfileId || '-'"></td>
+                    <td class="px-6 py-3 text-sm text-gray-400 truncate max-w-xs" x-text="JSON.stringify(log.changes || {})"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div x-show="logs.length === 0" class="text-center text-gray-500 py-12">No activity yet</div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== AGENT EDIT MODAL ==================== -->
+  <div x-show="showAgentModal" class="fixed inset-0 z-50 flex items-start justify-center pt-10 modal-overlay" @click.self="showAgentModal = false">
+    <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto" @click.stop>
+      <div class="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center z-10">
+        <h2 class="text-xl font-bold" x-text="isCreating ? 'Create Agent' : 'Edit Agent'"></h2>
+        <button @click="showAgentModal = false" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+      </div>
+      <div class="p-6 space-y-6">
+        <!-- Basic Info -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Agent Name</label>
+            <input type="text" x-model="agentForm.name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Tier</label>
+            <select x-model="agentForm.tier" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+              <option value="free">Free</option>
+              <option value="pro">Pro</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Description</label>
+          <input type="text" x-model="agentForm.description" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500" placeholder="Brief description of this agent">
+        </div>
+
+        <!-- LLM & Limits -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">LLM Model</label>
+            <select x-model="agentForm.llmModel" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+              <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+              <option value="claude-opus-4-20250514">Claude Opus 4</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Message Limit / Month</label>
+            <input type="number" x-model.number="agentForm.messageLimit" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
+        <!-- System Prompt -->
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">System Prompt / Instructions</label>
+          <textarea x-model="agentForm.systemPrompt" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 prompt-editor" rows="8" placeholder="Enter the agent's system prompt, rules, and instructions..."></textarea>
+        </div>
+
+        <!-- Capabilities -->
+        <div>
+          <label class="block text-sm text-gray-400 mb-3">Capabilities</label>
+          <div class="grid grid-cols-2 gap-3">
+            <template x-for="cap in ['basicAssistant','memoryBank','noteTaking','documentCreation','documentEditing','webScraping','salesTools','startupIdeas','autonomousActions','apiAccess']" :key="cap">
+              <label class="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700">
+                <input type="checkbox" x-model="agentForm.capabilities[cap]" class="w-4 h-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800">
+                <span class="text-sm" x-text="cap.replace(/([A-Z])/g, ' $1').trim()"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+
+        <!-- Integrations -->
+        <div>
+          <label class="block text-sm text-gray-400 mb-3">Integrations</label>
+          <div class="grid grid-cols-2 gap-3">
+            <template x-for="intg in ['googleCalendar','gmail','googleDrive','slack','notion','linkedin']" :key="intg">
+              <label class="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700">
+                <input type="checkbox" x-model="agentForm.integrations[intg]" class="w-4 h-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800">
+                <span class="text-sm" x-text="intg.replace(/([A-Z])/g, ' $1').trim()"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+
+        <!-- Behavior -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Response Style</label>
+            <select x-model="agentForm.behavior.responseStyle" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+              <option value="concise">Concise</option>
+              <option value="balanced">Balanced</option>
+              <option value="detailed">Detailed</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Context Retention</label>
+            <select x-model="agentForm.behavior.contextRetention" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+              <option value="session">Session</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="permanent">Permanent</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700">
+            <input type="checkbox" x-model="agentForm.behavior.proactiveAlerts" class="w-4 h-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800">
+            <span class="text-sm">Proactive Alerts</span>
+          </label>
+          <label class="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700">
+            <input type="checkbox" x-model="agentForm.behavior.learningEnabled" class="w-4 h-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800">
+            <span class="text-sm">Learning</span>
+          </label>
+          <label class="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700">
+            <input type="checkbox" x-model="agentForm.behavior.autoSummarization" class="w-4 h-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800">
+            <span class="text-sm">Auto Summarize</span>
+          </label>
+        </div>
+      </div>
+      <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 px-6 py-4 flex justify-end gap-3">
+        <button @click="showAgentModal = false" class="px-4 py-2 text-gray-400 hover:text-white transition">Cancel</button>
+        <button @click="saveAgent()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">Save Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TIER EDIT MODAL ==================== -->
+  <div x-show="showTierModal" class="fixed inset-0 z-50 flex items-start justify-center pt-10 modal-overlay" @click.self="showTierModal = false">
+    <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" @click.stop>
+      <div class="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center z-10">
+        <h2 class="text-xl font-bold" x-text="isCreating ? 'Create Tier' : 'Edit Tier'"></h2>
+        <button @click="showTierModal = false" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+      </div>
+      <div class="p-6 space-y-6">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Tier Name</label>
+            <input type="text" x-model="tierForm.name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Slug</label>
+            <input type="text" x-model="tierForm.slug" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. pro">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Description</label>
+          <input type="text" x-model="tierForm.description" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Price / Month ($)</label>
+            <input type="number" step="0.01" x-model.number="tierForm.priceMonthly" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Message Limit</label>
+            <input type="number" x-model.number="tierForm.messageLimit" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Sort Order</label>
+            <input type="number" x-model.number="tierForm.sortOrder" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div>
+          <label class="block text-sm text-gray-400 mb-3">Features Included</label>
+          <div class="grid grid-cols-2 gap-3">
+            <template x-for="feat in ['basicAssistant','memoryBank','webScraping','salesTools','autonomousActions','apiAccess']" :key="feat">
+              <label class="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700">
+                <input type="checkbox" x-model="tierForm.features[feat]" class="w-4 h-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800">
+                <span class="text-sm" x-text="feat.replace(/([A-Z])/g, ' $1').trim()"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+
+        <!-- Agents in Tier -->
+        <div x-show="agents.length > 0">
+          <label class="block text-sm text-gray-400 mb-3">Agents Available in This Tier</label>
+          <div class="grid grid-cols-2 gap-3">
+            <template x-for="agent in agents" :key="agent.id">
+              <label class="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700">
+                <input type="checkbox" :checked="tierForm.agentIds.includes(agent.id)" @change="toggleTierAgent(agent.id)"
+                  class="w-4 h-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800">
+                <span class="text-sm" x-text="agent.name"></span>
+                <span class="badge text-xs" :class="tierBadgeClass(agent.tier)" x-text="agent.tier"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 px-6 py-4 flex justify-end gap-3">
+        <button @click="showTierModal = false" class="px-4 py-2 text-gray-400 hover:text-white transition">Cancel</button>
+        <button @click="saveTier()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">Save Tier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== USER EDIT MODAL ==================== -->
+  <div x-show="showUserModal" class="fixed inset-0 z-50 flex items-start justify-center pt-10 modal-overlay" @click.self="showUserModal = false">
+    <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg" @click.stop x-show="selectedUser">
+      <div class="border-b border-gray-700 px-6 py-4 flex justify-between items-center">
+        <h2 class="text-xl font-bold">Edit User</h2>
+        <button @click="showUserModal = false" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+      </div>
+      <div class="p-6 space-y-4" x-show="selectedUser">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Name</label>
+            <div class="text-white" x-text="selectedUser?.name || 'N/A'"></div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Phone</label>
+            <div class="text-white" x-text="selectedUser?.phoneNumber"></div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Email</label>
+            <div class="text-white" x-text="selectedUser?.email || 'N/A'"></div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Status</label>
+            <span class="badge" :class="selectedUser?.isActive ? 'badge-active' : 'badge-inactive'" x-text="selectedUser?.isActive ? 'Active' : 'Inactive'"></span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Assign Agent</label>
+          <select x-model="selectedUser.assistantProfileId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <option value="">None</option>
+            <template x-for="agent in agents" :key="agent.id">
+              <option :value="agent.id" x-text="agent.name"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Subscription Tier</label>
+          <select x-model="selectedUser.subscriptionTier" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+            <template x-for="tier in tiers" :key="tier.slug">
+              <option :value="tier.slug" x-text="tier.name + ' - ' + formatCurrency(tier.priceMonthly) + '/mo'"></option>
+            </template>
+            <option value="free">Free</option>
+            <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+      </div>
+      <div class="border-t border-gray-700 px-6 py-4 flex justify-between">
+        <button @click="updateUser(selectedUser.id, { isActive: !selectedUser.isActive })"
+          class="text-sm" :class="selectedUser?.isActive ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'"
+          x-text="selectedUser?.isActive ? 'Deactivate' : 'Activate'"></button>
+        <div class="flex gap-3">
+          <button @click="showUserModal = false" class="px-4 py-2 text-gray-400 hover:text-white transition">Cancel</button>
+          <button @click="updateUser(selectedUser.id, { assistantProfileId: selectedUser.assistantProfileId, tier: selectedUser.subscriptionTier })"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
