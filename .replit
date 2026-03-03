@@ -1,9 +1,9 @@
 run = "npm start"
-modules = ["nodejs-20"]
+modules = ["nodejs-20", "nix"]
 hidden = [".config", "package-lock.json"]
 
 [nix]
-channel = "stable-23_11"
+channel = "stable-25_05"
 
 [deployment]
 run = ["sh", "-c", "npm install && npm run build && npm start"]
