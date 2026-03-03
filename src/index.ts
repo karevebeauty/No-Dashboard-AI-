@@ -160,15 +160,12 @@ class SMSAgentServer {
       });
     }
 
-    // Serve admin dashboard static files
-    this.app.use(express.static(path.join(__dirname, '..', 'public')));
-
-    // Admin API routes
-    this.app.use('/api/admin', createAdminRoutes(this.database.getPool()));
-
-    // SPA fallback for admin dashboard
-    this.app.get('/', (req, res) => {
-      res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    this.app.use('/api/admin', (req, res, next) => {
+      if (!this.database) {
+        res.status(503).json({ error: 'Database not available' });
+        return;
+      }
+      createAdminRoutes(this.database.getPool())(req, res, next);
     });
 
     // 404 handler
@@ -329,13 +326,17 @@ class SMSAgentServer {
         this.shutdown();
       });
 
-    } catch (error) {
-      logger.error('Failed to start SMS Agent Server', { error });
+    } catch (error: any) {
+      logger.error('Failed to start SMS Agent Server', {
+        message: error?.message,
+        stack: error?.stack,
+        code: error?.code,
+      });
+      console.error('STARTUP ERROR:', error);
       process.exit(1);
     }
   }
 }
 
-// Start the server
 const server = new SMSAgentServer();
 server.start();
