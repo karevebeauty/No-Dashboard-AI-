@@ -102,8 +102,30 @@ export class SecurityService {
     this.activeSessions = new Map();
     this.pendingReauths = new Map();
     
-    // Start background session monitoring
-    this.startSessionMonitoring();
+    // Load settings from DB then start monitoring
+    this.loadSettingsFromDB().then(() => {
+      this.startSessionMonitoring();
+    });
+  }
+
+  /**
+   * Load security settings from the system_settings table
+   */
+  async loadSettingsFromDB(): Promise<void> {
+    try {
+      const result = await this.db.query(
+        "SELECT value FROM system_settings WHERE key = 'security_settings'"
+      );
+      if (result.rows.length > 0) {
+        const stored = typeof result.rows[0].value === 'string'
+          ? JSON.parse(result.rows[0].value)
+          : result.rows[0].value;
+        this.settings = { ...this.settings, ...stored };
+        logger.info('Security settings loaded from database');
+      }
+    } catch (error) {
+      logger.warn('Could not load security settings from DB, using defaults');
+    }
   }
 
   /**
@@ -625,10 +647,10 @@ Please wait ${this.settings.passcode.cooldownMinutes} minutes before trying agai
 
     // Save to database
     await this.db.query(
-      `INSERT INTO system_settings (key, value, updated_by, updated_at)
+      `INSERT INTO system_settings (key, value, description, updated_at)
        VALUES ('security_settings', $1, $2, $3)
-       ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = $2, updated_at = $3`,
-      [JSON.stringify(this.settings), adminId, new Date()]
+       ON CONFLICT (key) DO UPDATE SET value = $1, description = $2, updated_at = $3`,
+      [JSON.stringify(this.settings), `Updated by ${adminId}`, new Date()]
     );
 
     logger.info('Security settings updated', { adminId });

@@ -31,9 +31,14 @@ src/
 ## Frontend Dashboard
 - Static files served from `public/` directory
 - `public/index.html` - Main dashboard page
-- `public/styles.css` - Dark theme styles
+- `public/styles.css` - Tesla-inspired light theme (white/gray backgrounds, dark accents, bold typography)
 - `public/app.js` - Dashboard client logic
-- Pages: Overview, Services, Messages, Integrations, Logs, Settings
+- Pages: Overview, Agents, Users, Security, Services, Messages, Logs, Settings
+
+## Admin Dashboard Modules
+- **Agents**: Create/edit/delete AI agent profiles with LLM model, tier, capabilities, system prompt
+- **Users**: View all SMS users with phone, name, email, assigned agent, tier, last activity, status; edit user agent/tier/status
+- **Security**: Configure session timeouts, idle thresholds, re-authentication rules, passcode settings; saved to system_settings table
 
 ## Key Endpoints
 - `GET /` - Dashboard UI
@@ -41,6 +46,11 @@ src/
 - `GET /health` - Health check
 - `POST /sms/webhook` - Twilio SMS webhook
 - `POST /sms/status` - SMS delivery status callback
+- `GET/POST/PUT/DELETE /api/admin/agents` - Agent profile CRUD
+- `GET/PUT /api/admin/users` - User management
+- `GET/PUT /api/admin/security-settings` - Security configuration
+- `GET/POST/PUT/DELETE /api/admin/tiers` - Subscription tier management
+- `GET /api/admin/logs` - Admin action audit log
 
 ## External Services (all optional for dev)
 - **Twilio**: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, TWILIO_WEBHOOK_URL
