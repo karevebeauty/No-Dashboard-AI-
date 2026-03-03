@@ -12,6 +12,7 @@ import { Database } from './services/database';
 import { HealthCheckService } from './services/health-check';
 import { NotificationService } from './services/notification-service';
 import { PersonalAssistantService } from './services/personal-assistant-service';
+import { createAdminRoutes } from './routes/admin-routes';
 import { errorHandler } from './utils/error-handler';
 
 class SMSAgentServer {
@@ -29,9 +30,18 @@ class SMSAgentServer {
   }
 
   private setupMiddleware(): void {
+    // Security middleware (CSP allows Tailwind + Alpine.js CDN for admin dashboard)
     this.app.use(helmet({
-      contentSecurityPolicy: false,
-      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-eval'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://fonts.googleapis.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'"],
+        },
+      },
     }));
     this.app.use(cors());
     this.app.use(compression());
@@ -150,6 +160,18 @@ class SMSAgentServer {
       });
     }
 
+    // Serve admin dashboard static files
+    this.app.use(express.static(path.join(__dirname, '..', 'public')));
+
+    // Admin API routes
+    this.app.use('/api/admin', createAdminRoutes(this.database.getPool()));
+
+    // SPA fallback for admin dashboard
+    this.app.get('/', (req, res) => {
+      res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    });
+
+    // 404 handler
     this.app.use((req, res) => {
       res.status(404).json({
         error: 'Not Found',
